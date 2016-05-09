@@ -41,7 +41,7 @@ public class ConvertToJSONWithRegexTest {
 
     @Test
     public void testProcessor1() {
-        testRunner.setProperty(ConvertToJSONWithRegex.REGEX, "\\?<word>test ?<number>[0-9]+");
+        testRunner.setProperty(ConvertToJSONWithRegex.REGEX, "(?<word>test)(?<number>[0-9]+).*");
         ProcessSession session = testRunner.getProcessSessionFactory().createSession();
 
         FlowFile ff = session.create();
@@ -56,7 +56,8 @@ public class ConvertToJSONWithRegexTest {
 
         testRunner.enqueue(ff);
         testRunner.run();
-        testRunner.assertTransferCount(ConvertToJSONWithRegex.REL_SUCCESS, 1);
+        testRunner.assertTransferCount(ConvertToJSONWithRegex.REL_MATCH, 1);
+        testRunner.assertTransferCount(ConvertToJSONWithRegex.REL_UNMATCH, 0);
         testRunner.assertTransferCount(ConvertToJSONWithRegex.REL_FAILURE, 0);
         testRunner.getProcessor();
 
