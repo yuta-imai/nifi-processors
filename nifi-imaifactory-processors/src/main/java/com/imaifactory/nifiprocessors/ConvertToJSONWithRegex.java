@@ -16,6 +16,7 @@
  */
 package com.imaifactory.nifiprocessors;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -32,6 +33,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -48,8 +50,11 @@ public class ConvertToJSONWithRegex extends AbstractProcessor {
 
     private static final String APPLICATION_JSON = "application/json";
 
-    public static final Relationship REL_SUCCESS = new Relationship.Builder().name("success")
-            .description("Successfully converted attributes to JSON").build();
+    public static final Relationship REL_MATCH = new Relationship.Builder().name("match")
+            .description("Matched your regular expression and successfully converted attributes to JSON").build();
+
+    public static final Relationship REL_UNMATCH = new Relationship.Builder().name("unmatch")
+            .description("Did not match your regular expression.").build();
 
     public static final Relationship REL_FAILURE = new Relationship.Builder().name("failure")
             .description("Failed to convert attributes to JSON").build();
@@ -75,7 +80,8 @@ public class ConvertToJSONWithRegex extends AbstractProcessor {
         this.properties = Collections.unmodifiableList(properties);
 
         final Set<Relationship> relationships = new HashSet<Relationship>();
-        relationships.add(REL_SUCCESS);
+        relationships.add(REL_MATCH);
+        relationships.add(REL_UNMATCH);
         relationships.add(REL_FAILURE);
         this.relationships = Collections.unmodifiableSet(relationships);
     }
@@ -103,22 +109,26 @@ public class ConvertToJSONWithRegex extends AbstractProcessor {
         final Pattern pattern = Pattern.compile(regex);
 
         try {
+            final HashMap<String, Relationship> map = new HashMap<>();
             FlowFile result = session.write(original, new StreamCallback() {
                 @Override
                 public void process(InputStream in, OutputStream out) throws IOException {
                     try (OutputStream outputStream = new BufferedOutputStream(out)) {
-                        String line = in.toString();
+                        String line = IOUtils.toString(in, Charset.defaultCharset());
                         Matcher matches = pattern.matcher(line);
                         if(matches.find()) {
                             Map parsed = parse(keys, matches);
+                            outputStream.write(objectMapper.writeValueAsBytes(parsed));
+                            map.put("dest", REL_MATCH);
                         }else {
-                            return;
+                            outputStream.write(IOUtils.toByteArray(in));
+                            map.put("dest", REL_UNMATCH);
                         }
                     }
                 }
             });
             result = session.putAttribute(result, CoreAttributes.MIME_TYPE.key(), APPLICATION_JSON);
-            session.transfer(result,REL_SUCCESS);
+            session.transfer(result,map.get("dest"));
         } catch (Exception e) {
             getLogger().error(e.getMessage());
             session.transfer(original, REL_FAILURE);
