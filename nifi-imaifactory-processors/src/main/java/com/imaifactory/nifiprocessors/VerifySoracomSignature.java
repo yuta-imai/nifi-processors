@@ -107,15 +107,12 @@ public class VerifySoracomSignature extends AbstractProcessor {
         Map<String, String> attributes = flowFile.getAttributes();
         if ( !attributes.containsKey("http.headers.x-soracom-signature") ||
                 !attributes.containsKey("http.headers.x-soracom-timestamp") ||
-                !attributes.containsKey("http.headers.x-soracom-signature-version")
+                !attributes.containsKey("http.headers.x-soracom-signature-version") ||
+                !attributes.containsKey("http.headers.x-soracom-imsi")
                 ) {
             return false;
         }
 
-        if ( !attributes.containsKey("http.headers.x-soracom-imei") &&
-                !attributes.containsKey("http.headers.x-soracom-imsi")) {
-            return false;
-        }
 
         String stringToSign;
         try {
@@ -143,9 +140,7 @@ public class VerifySoracomSignature extends AbstractProcessor {
             stringToSign = stringToSign + "x-soracom-imei=" + attributes.get("http.headers.x-soracom-imei");
         }
 
-        if(attributes.containsKey("http.headers.x-soracom-imsi")) {
-            stringToSign = stringToSign + "x-soracom-imsi=" + attributes.get("http.headers.x-soracom-imsi");
-        }
+        stringToSign = stringToSign + "x-soracom-imsi=" + attributes.get("http.headers.x-soracom-imsi");
 
         stringToSign = stringToSign + "x-soracom-timestamp=" + attributes.get("http.headers.x-soracom-timestamp");
 

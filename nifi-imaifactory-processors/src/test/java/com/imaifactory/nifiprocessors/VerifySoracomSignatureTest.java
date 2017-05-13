@@ -42,19 +42,65 @@ public class VerifySoracomSignatureTest {
     }
 
     @Test
-    public void testProcessor_right_signature() {
+    public void testProcessor_right_signature_with_imei_and_imsi() {
 
-        testRunner.setProperty(VerifySoracomSignature.SECRET, "topsecret");
+        String secret = "topsecret";
+        String imei = "359675070019530";
+        String imsi = "440103114938318";
+        String timestamp = "1494631852102";
+        String signature = org.apache.commons.codec.digest.DigestUtils.sha256Hex(
+                secret
+                        + "x-soracom-imei=" + imei
+                        + "x-soracom-imsi=" + imsi
+                        + "x-soracom-timestamp=" + timestamp
+        );
+
+        testRunner.setProperty(VerifySoracomSignature.SECRET, secret);
         testRunner.setProperty(VerifySoracomSignature.SORACOM_SIGNATURE_VERSION, "20151001");
         ProcessSession session = testRunner.getProcessSessionFactory().createSession();
 
+
         FlowFile ff = session.create();
         Map<String,String>  attributes = new HashMap<>();
-        attributes.put("http.headers.x-soracom-signature", "10aba09ab9c52a5e738b3bf98242075fe6f3f5d4ce55d323383870f1bc72b29c");
+        attributes.put("http.headers.x-soracom-signature", signature);
         attributes.put("http.headers.x-soracom-signature-version","20151001");
-        attributes.put("http.headers.x-soracom-timestamp","1494631852102");
-        attributes.put("http.headers.x-soracom-imsi","440103114938318");
-        attributes.put("http.headers.x-soracom-imei","359675070019530");
+        attributes.put("http.headers.x-soracom-timestamp",timestamp);
+        attributes.put("http.headers.x-soracom-imsi",imsi);
+        attributes.put("http.headers.x-soracom-imei",imei);
+        FlowFile modifiedFF = session.putAllAttributes(ff,attributes);
+
+        testRunner.enqueue(modifiedFF);
+        testRunner.run();
+        testRunner.assertTransferCount(ConvertToJSONWithRegex.REL_SUCCESS, 1);
+        testRunner.assertTransferCount(ConvertToJSONWithRegex.REL_FAILURE, 0);
+        testRunner.getProcessor();
+
+    }
+
+    @Test
+    public void testProcessor_right_signature_with_and_imsi() {
+
+        String secret = "topsecret";
+        String imei = "359675070019530";
+        String imsi = "440103114938318";
+        String timestamp = "1494631852102";
+        String signature = org.apache.commons.codec.digest.DigestUtils.sha256Hex(
+                secret
+                        + "x-soracom-imsi=" + imsi
+                        + "x-soracom-timestamp=" + timestamp
+        );
+
+        testRunner.setProperty(VerifySoracomSignature.SECRET, secret);
+        testRunner.setProperty(VerifySoracomSignature.SORACOM_SIGNATURE_VERSION, "20151001");
+        ProcessSession session = testRunner.getProcessSessionFactory().createSession();
+
+
+        FlowFile ff = session.create();
+        Map<String,String>  attributes = new HashMap<>();
+        attributes.put("http.headers.x-soracom-signature", signature);
+        attributes.put("http.headers.x-soracom-signature-version","20151001");
+        attributes.put("http.headers.x-soracom-timestamp",timestamp);
+        attributes.put("http.headers.x-soracom-imsi",imsi);
         FlowFile modifiedFF = session.putAllAttributes(ff,attributes);
 
         testRunner.enqueue(modifiedFF);
@@ -88,5 +134,6 @@ public class VerifySoracomSignatureTest {
         testRunner.getProcessor();
 
     }
+
 
 }
